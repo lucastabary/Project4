@@ -6,7 +6,8 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_device(device)
 
-generator = torch.Generator().manual_seed(555)
+torch.manual_seed(555)
+torch.cuda.manual_seed_all(555)
 
 
 def main():
@@ -24,7 +25,7 @@ def main():
     model = model.to(torch.get_default_device())
     
         
-    train_model(model, dataset, epochs=20, batch_size=32, lr=0.001, generator=generator)
+    train_model(model, dataset, epochs=20, batch_size=32, lr=0.001)
     print("Training complete.")
 
 main()

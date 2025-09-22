@@ -93,7 +93,7 @@ def process_midi_file(midi_file):
         last_start = start
 
     notes.append(token_to_id["EOS"])
-    notes = torch.tensor(notes, dtype=torch.uint8)
+    notes = torch.tensor(notes, dtype=torch.uint8).to(torch.get_default_device())
     return notes
 
 
@@ -129,8 +129,7 @@ class LSTM1(nn.Module):
         return out
 
 
-def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001, generator=None):
-    dataset.to(torch.get_default_device())
+def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
                             collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
     criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
