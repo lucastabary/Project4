@@ -146,9 +146,10 @@ def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
             targets = batch[:, 1:]  # Next token prediction
             inputs = batch[:, :-1]  # Align inputs with targets
             
+            print(f"Inputs shape: {inputs.shape}, Input device : {inputs.device}")
 
             optimizer.zero_grad()
-            outputs = model(inputs.contiguous())
+            outputs = model(inputs)
             loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
             loss.backward()
             optimizer.step()
