@@ -4,8 +4,8 @@ from data_manager import find_all_midi_files
 import time
 
 torch.set_default_device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.manual_seed(555)
-torch.cuda.manual_seed_all(555)
+
+
 
 def main():
 
