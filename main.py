@@ -5,12 +5,13 @@ import time
 
 torch.set_default_device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(555)
+torch.cuda.manual_seed_all(555)
 
 def main():
 
     print(f"Using device: {torch.get_default_device()}")
 
-    
+
     midi_files = find_all_midi_files('datasets/MAESTRO/data')
 
     dataset = MIDIDataset1(midi_files)
