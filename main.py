@@ -3,8 +3,10 @@ from test1 import LSTM1, MIDIDataset1, all_tokens, train_model
 from data_manager import find_all_midi_files
 import time
 
-torch.set_default_device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+torch.set_default_device(device)
 
+generator = torch.Generator().manual_seed(555)
 
 
 def main():
@@ -22,7 +24,7 @@ def main():
     model = model.to(torch.get_default_device())
     
         
-    train_model(model, dataset, epochs=20, batch_size=32, lr=0.001)
+    train_model(model, dataset, epochs=20, batch_size=32, lr=0.001, generator=generator)
     print("Training complete.")
 
 main()
