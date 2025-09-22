@@ -141,9 +141,11 @@ def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
         total_loss = 0
         for batch_idx, batch in enumerate(dataloader):
             
+            batch = batch.to(torch.get_default_device())
+            
             targets = batch[:, 1:]  # Next token prediction
             inputs = batch[:, :-1]  # Align inputs with targets
-            inputs = inputs.contiguous()
+            
 
             optimizer.zero_grad()
             outputs = model(inputs)
