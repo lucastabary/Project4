@@ -143,6 +143,7 @@ def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
             
             targets = batch[:, 1:]  # Next token prediction
             inputs = batch[:, :-1]  # Align inputs with targets
+            inputs = inputs.contiguous()
 
             optimizer.zero_grad()
             outputs = model(inputs)
