@@ -25,7 +25,7 @@ def main():
     model = model.to(torch.get_default_device())
     
         
-    train_model(model, dataset, epochs=20, batch_size=16, lr=0.001)
+    train_model(model, dataset, epochs=20, batch_size=1, lr=0.001)
     print("Training complete.")
 
 main()
