@@ -98,15 +98,19 @@ def process_midi_file(midi_file):
 
 
 class MIDIDataset1(Dataset):
-    def __init__(self, midi_files):
+    def __init__(self, midi_files, seq_len=512):
         self.midi_files = midi_files
+        self.seq_len = seq_len
 
     def __len__(self):
         return len(self.midi_files)
 
     def __getitem__(self, idx):
-        midi_file = self.midi_files[idx]
-        midi_data = process_midi_file(midi_file)
+        midi_data = process_midi_file(self.midi_files[idx])
+        # Découpage aléatoire si la séquence est trop longue
+        if len(midi_data) > self.seq_len:
+            start = np.random.randint(0, len(midi_data) - self.seq_len)
+            midi_data = midi_data[start:start+self.seq_len]
         return midi_data
         
 
