@@ -130,7 +130,8 @@ class LSTM1(nn.Module):
 
 
 def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001, generator=None):
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=generator,
+    dataset.to(torch.get_default_device())
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
                             collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
     criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
