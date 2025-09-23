@@ -109,8 +109,8 @@ class MIDIDataset1(Dataset):
         midi_data = process_midi_file(self.midi_files[idx])
         # Découpage aléatoire si la séquence est trop longue
         if len(midi_data) > self.seq_len:
-            start = np.random.randint(0, len(midi_data) - self.seq_len)
-            midi_data = midi_data[start:start+self.seq_len]
+            start = np.random.randint(0, len(midi_data) - self.seq_len - 1)
+            midi_data = midi_data[start:start+self.seq_len+1]
         return midi_data
         
 
