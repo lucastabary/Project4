@@ -52,10 +52,10 @@ def write_midi_file(tokens, filename):
     current_time = 0.0
     i = 0
     while i < len(tokens):
-        pitch_id = tokens[i].item()
-        velocity_id = tokens[i+1].item()
-        duration_id = tokens[i+2].item()
-        delta_id = tokens[i+3].item()
+        pitch_id = tokens[i]
+        velocity_id = tokens[i+1]
+        duration_id = tokens[i+2]
+        delta_id = tokens[i+3]
 
         pitch = int(id_to_token[pitch_id].split('_')[1])
         velocity = int(id_to_token[velocity_id].split('_')[1])
@@ -98,7 +98,7 @@ def process_midi_file(midi_file):
 
 
 class MIDIDataset1(Dataset):
-    def __init__(self, midi_files, seq_len=512):
+    def __init__(self, midi_files, seq_len=2048):
         self.midi_files = midi_files
         self.seq_len = seq_len
 
@@ -131,9 +131,60 @@ class LSTM1(nn.Module):
         out, _ = self.lstm2(out)
         out = self.fc(out)
         return out
+    
+    def generate_sequence(self, seq_len=2048, device=None):
+        if device is None:
+            device = torch.get_default_device()
+        self.eval()
+        generated = [token_to_id["BOS"]]
+        input_seq = torch.tensor([generated], device=device)
+        with torch.no_grad():
+            for _ in range(seq_len - 1):
+                if _ % 50 == 0: print(_)
+                output = self(input_seq)
+                next_token_logits = output[0, -1]
+                next_token = torch.argmax(next_token_logits).item()
+                generated.append(next_token)
+                input_seq = torch.tensor([generated], device=device)
+        return generated
+
+    def generate_valid_sequence(self, seq_len=2048, device=None):
+        if device is None:
+            device = torch.get_default_device()
+        self.eval()
+        generated = [token_to_id["BOS"]]
+        input_seq = torch.tensor([generated], device=device)
+        with torch.no_grad():
+            wrong_tokens = 0
+            for _ in range(seq_len - 1):
+                output = self(input_seq)
+                next_token_logits = output[0, -1]
+                
+                precedent_token = id_to_token[generated[-1]]
+                if precedent_token.startswith("PITCH_"):
+                    next_token = torch.argmax(next_token_logits[131:147]).item() + 131
+                elif precedent_token.startswith("VELOCITY_"):
+                    next_token = torch.argmax(next_token_logits[147:165]).item() + 147
+                elif precedent_token.startswith("DURATION_"):
+                    next_token = torch.argmax(next_token_logits[165:183]).item() + 165
+                elif precedent_token.startswith("DELTA_"):
+                    next_token = torch.argmax(next_token_logits[3:131]).item() + 3
+                elif precedent_token == "BOS":
+                    next_token = torch.argmax(next_token_logits[3:131]).item() + 3
+                else:
+                    print(f"Valid sequence finished early at length {_} due to invalid token {precedent_token}.")
+                    return generated  # Stop if EOS or PAD
+                generated.append(next_token)
+                if next_token != torch.argmax(next_token_logits).item():
+                    wrong_tokens += 1
+                
+                input_seq = torch.tensor([generated], device=device)
+        
+        print(f"{wrong_tokens} / {seq_len} wrong tokens ({(wrong_tokens/seq_len)*100:.2f}%)")
+        return generated
 
 
-def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
+def train_model(model, dataset, epochs=10, batch_size=128, lr=0.001):
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
                             collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
     criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
@@ -163,4 +214,4 @@ def train_model(model, dataset, epochs=10, batch_size=32, lr=0.001):
         
         avg_loss = total_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-        torch.save(model.state_dict(), f"LSTM1_epoch{epoch+1}.pt")
+        torch.save(model.state_dict(), f"models/LSTM1_epoch{epoch+1}.pt")

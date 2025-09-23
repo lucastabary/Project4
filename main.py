@@ -1,5 +1,5 @@
 import torch
-from test1 import LSTM1, MIDIDataset1, all_tokens, train_model
+from test1 import LSTM1, MIDIDataset1, all_tokens, train_model, write_midi_file
 from data_manager import find_all_midi_files
 import time
 
@@ -11,10 +11,7 @@ torch.cuda.manual_seed_all(555)
 
 
 def main():
-
     print(f"Using device: {torch.get_default_device()}")
-
-
     midi_files = find_all_midi_files('datasets/MAESTRO/data')
 
     dataset = MIDIDataset1(midi_files)
@@ -28,4 +25,15 @@ def main():
     train_model(model, dataset, epochs=20, batch_size=16, lr=0.001)
     print("Training complete.")
 
-main()
+def generate(model):
+    
+    model.eval()
+
+    generated = model.generate_valid_sequence(seq_len=128+1)
+    print("Generated sequence:", generated)
+    write_midi_file(generated[1:], "generated/test.mid")
+    print()
+
+
+model = LSTM1(embedding_dim=16, hidden_size=256)
+generate(model)
