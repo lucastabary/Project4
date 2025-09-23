@@ -187,7 +187,7 @@ class LSTM1(nn.Module):
         print(f"Quick test MIDI file saved as generated/quicktest_{name}.mid")
 
     def launch_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, pin_memory=True,
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
                                 generator=torch.Generator(device=torch.get_default_device()),
                                 collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
