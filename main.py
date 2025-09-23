@@ -18,11 +18,11 @@ def main():
 
     test = dataset[0]  # Get the first MIDI data
     
-    model = LSTM1(embedding_dim=16, hidden_size=256)
+    model = LSTM1(embedding_dim=16, hidden_size=2048)
     model = model.to(torch.get_default_device())
     
         
-    train_model(model, dataset, epochs=20, batch_size=16, lr=0.001)
+    train_model(model, dataset, epochs=20, batch_size=64, lr=0.001)
     print("Training complete.")
 
 def generate(model):

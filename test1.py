@@ -135,7 +135,6 @@ class LSTM1(nn.Module):
     def generate_sequence(self, seq_len=2048, device=None):
         if device is None:
             device = torch.get_default_device()
-        self.eval()
         generated = [token_to_id["BOS"]]
         input_seq = torch.tensor([generated], device=device)
         with torch.no_grad():
@@ -151,7 +150,6 @@ class LSTM1(nn.Module):
     def generate_valid_sequence(self, seq_len=2048, device=None):
         if device is None:
             device = torch.get_default_device()
-        self.eval()
         generated = [token_to_id["BOS"]]
         input_seq = torch.tensor([generated], device=device)
         with torch.no_grad():
@@ -183,12 +181,17 @@ class LSTM1(nn.Module):
         print(f"{wrong_tokens} / {seq_len} wrong tokens ({(wrong_tokens/seq_len)*100:.2f}%)")
         return generated
 
+    def quick_test(self, name):
+        generated = self.generate_valid_sequence(seq_len=256+1)
+        write_midi_file(generated[1:], f"generated/quicktest_{name}.mid")
+        print(f"Quick test MIDI file saved as generated/quicktest_{name}.mid")
 
 def train_model(model, dataset, epochs=10, batch_size=128, lr=0.001):
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()),
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()), pin_memory=True,
                             collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
     criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4, factor=0.5)
 
     print("Starting training...")
     model.train()
@@ -208,10 +211,19 @@ def train_model(model, dataset, epochs=10, batch_size=128, lr=0.001):
             loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
             loss.backward()
             optimizer.step()
+            scheduler.step(loss.item())
 
             print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}")
             total_loss += loss.item()
         
         avg_loss = total_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-        torch.save(model.state_dict(), f"models/LSTM1_epoch{epoch+1}.pt")
+        model.eval()
+        model.quick_test(f"epoch{epoch+1}")
+        model.train()
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': avg_loss,
+        }, f'checkpoints/lstm1_epoch{epoch+1}.pth')
