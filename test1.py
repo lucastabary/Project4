@@ -186,47 +186,48 @@ class LSTM1(nn.Module):
         write_midi_file(generated[1:], f"generated/quicktest_{name}.mid")
         print(f"Quick test MIDI file saved as generated/quicktest_{name}.mid")
 
-def train_model(model, dataset, epochs=10, batch_size=128, lr=0.001):
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, generator=torch.Generator(device=torch.get_default_device()), pin_memory=True,
-                            collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
-    criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4, factor=0.5)
+    def launch_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, pin_memory=True,
+                                generator=torch.Generator(device=torch.get_default_device()),
+                                collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
+        criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
+        optimizer = torch.optim.AdamW(self.parameters(), lr=lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4, factor=0.5)
 
-    print("Starting training...")
-    model.train()
-    for epoch in range(epochs):
-        total_loss = 0
-        for batch_idx, batch in enumerate(dataloader):
+        print("Starting training...")
+        self.train()
+        for epoch in range(epochs):
+            total_loss = 0
+            for batch_idx, batch in enumerate(dataloader):
+                
+                batch = batch.to(torch.get_default_device())
+
+                targets = batch[:, 1:]  # Next token prediction
+                inputs = batch[:, :-1]  # Align inputs with targets
+                
+                print(f"Inputs shape: {inputs.shape}, Input device : {inputs.device}")
+
+                optimizer.zero_grad()
+                outputs = self(inputs)
+                loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
+                loss.backward()
+                optimizer.step()
+
+                print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}")
+                total_loss += loss.item()
             
-            batch = batch.to(torch.get_default_device())
+            avg_loss = total_loss / len(dataloader)
+            scheduler.step(avg_loss)
 
-            targets = batch[:, 1:]  # Next token prediction
-            inputs = batch[:, :-1]  # Align inputs with targets
-            
-            print(f"Inputs shape: {inputs.shape}, Input device : {inputs.device}")
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
-            loss.backward()
-            optimizer.step()
+            self.eval()
+            self.quick_test(f"epoch{epoch+1}")
+            self.train()
 
-            print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}")
-            total_loss += loss.item()
-        
-        avg_loss = total_loss / len(dataloader)
-        scheduler.step(avg_loss)
-        
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-
-        model.eval()
-        model.quick_test(f"epoch{epoch+1}")
-        model.train()
-
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': avg_loss,
-        }, f'checkpoints/lstm1_epoch{epoch+1}.pth')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': self.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_loss,
+            }, f'checkpoints/lstm1_epoch{epoch+1}.pth')

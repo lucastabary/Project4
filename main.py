@@ -1,5 +1,5 @@
 import torch
-from test1 import LSTM1, MIDIDataset1, all_tokens, train_model, write_midi_file
+from test1 import LSTM1, MIDIDataset1, all_tokens, write_midi_file
 from data_manager import find_all_midi_files
 import time
 
@@ -22,7 +22,7 @@ def main():
     model = model.to(torch.get_default_device())
     
         
-    train_model(model, dataset, epochs=20, batch_size=64, lr=0.001)
+    model.launch_training(dataset, epochs=20, batch_size=64, lr=0.001)
     print("Training complete.")
 
 def generate(model):
