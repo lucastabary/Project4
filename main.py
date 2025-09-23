@@ -20,7 +20,7 @@ def main():
     model = model.to(torch.get_default_device())
     
         
-    model.launch_training(dataset, epochs=20, batch_size=64, lr=0.001)
+    model.launch_training(dataset, epochs=20, batch_size=128, lr=0.001)
     print("Training complete.")
 
 def generate():
