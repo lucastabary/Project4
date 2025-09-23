@@ -15,8 +15,6 @@ def main():
     midi_files = find_all_midi_files('datasets/MAESTRO/data')
 
     dataset = MIDIDataset1(midi_files)
-
-    test = dataset[0]  # Get the first MIDI data
     
     model = LSTM1(embedding_dim=16, hidden_size=2048)
     model = model.to(torch.get_default_device())
@@ -34,6 +32,4 @@ def generate(model):
     write_midi_file(generated[1:], "generated/test.mid")
     print()
 
-
-model = LSTM1(embedding_dim=16, hidden_size=256)
-main(model)
+main()
