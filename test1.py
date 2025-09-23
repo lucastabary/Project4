@@ -87,8 +87,8 @@ def process_midi_file(midi_file):
         start = note.start
         pitch = note.pitch
         velocity = note.velocity
-        duration = note.end - note.start
-        time_since_last = start - last_start
+        duration = (note.end - note.start) * 1000  # Convert to ms
+        time_since_last = (start - last_start) * 1000  # Convert to ms
         notes.extend([encode_pitch(pitch), encode_velocity(velocity), encode_duration(duration), encode_delta_t(time_since_last)])
         last_start = start
 

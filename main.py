@@ -23,13 +23,15 @@ def main():
     model.launch_training(dataset, epochs=20, batch_size=64, lr=0.001)
     print("Training complete.")
 
-def generate(model):
-    
-    model.eval()
+def generate():
+
+    model = LSTM1(embedding_dim=16, hidden_size=256)
+
+    model.load_state_dict(torch.load('checkpoints/lstm1_epoch8.pth', map_location=torch.get_default_device())['model_state_dict'])
 
     generated = model.generate_valid_sequence(seq_len=128+1)
     print("Generated sequence:", generated)
-    write_midi_file(generated[1:], "generated/test.mid")
+    write_midi_file(generated[1:], "generated/test2.mid")
     print()
 
 main()
