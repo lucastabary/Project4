@@ -211,16 +211,19 @@ def train_model(model, dataset, epochs=10, batch_size=128, lr=0.001):
             loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
             loss.backward()
             optimizer.step()
-            scheduler.step(loss.item())
 
             print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}")
             total_loss += loss.item()
         
         avg_loss = total_loss / len(dataloader)
+        scheduler.step(avg_loss)
+        
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
         model.eval()
         model.quick_test(f"epoch{epoch+1}")
         model.train()
+
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),

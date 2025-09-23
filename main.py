@@ -36,4 +36,4 @@ def generate(model):
 
 
 model = LSTM1(embedding_dim=16, hidden_size=256)
-generate(model)
+main(model)
