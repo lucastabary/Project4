@@ -117,8 +117,9 @@ class MIDIDataset1(Dataset):
 
 
 class LSTM1(nn.Module):
-    def __init__(self, embedding_dim, hidden_size):
+    def __init__(self, name, embedding_dim, hidden_size):
         super(LSTM1, self).__init__()
+        self.name = name
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(len(all_tokens), embedding_dim=embedding_dim)
         self.lstm1 = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
@@ -181,10 +182,43 @@ class LSTM1(nn.Module):
         print(f"{wrong_tokens} / {seq_len} wrong tokens ({(wrong_tokens/seq_len)*100:.2f}%)")
         return generated
 
+    def generate_stochastic_sequence(self, seq_len=2048, temperature=1.0, device=None):
+        if device is None:
+            device = torch.get_default_device()
+        generated = [token_to_id["BOS"]]
+        input_seq = torch.tensor([generated], device=device)
+        with torch.no_grad():
+            for _ in range(seq_len - 1):
+                output = self(input_seq)
+                next_token_logits = output[0, -1] / temperature
+                masked_logits = next_token_logits.clone()
+                precedent_token = id_to_token[generated[-1]]
+                if precedent_token.startswith("PITCH_"):
+                    masked_logits[:131] = -float('Inf')
+                    masked_logits[147:] = -float('Inf')
+                elif precedent_token.startswith("VELOCITY_"):
+                    masked_logits[:147] = -float('Inf')
+                    masked_logits[165:] = -float('Inf')
+                elif precedent_token.startswith("DURATION_"):
+                    masked_logits[:165] = -float('Inf')
+                    masked_logits[183:] = -float('Inf')
+                elif precedent_token.startswith("DELTA_"):
+                    masked_logits[:3] = -float('Inf')
+                    masked_logits[131:] = -float('Inf')
+                elif precedent_token == "BOS":
+                    masked_logits[:3] = -float('Inf')
+                    masked_logits[131:] = -float('Inf')
+
+                probabilities = torch.softmax(masked_logits, dim=0).cpu().numpy()
+                next_token = np.random.choice(len(all_tokens), p=probabilities)
+                generated.append(next_token)
+                input_seq = torch.tensor([generated], device=device)
+        return generated
+    
     def quick_test(self, name):
         generated = self.generate_valid_sequence(seq_len=256+1)
-        write_midi_file(generated[1:], f"generated/quicktest_{name}.mid")
-        print(f"Quick test MIDI file saved as generated/quicktest_{name}.mid")
+        write_midi_file(generated[1:], f"generated/qt_{self.name}_{name}.mid")
+        print(f"Quick test MIDI file saved as generated/qt_{self.name}_{name}.mid")
 
     def launch_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
@@ -192,7 +226,11 @@ class LSTM1(nn.Module):
                                 collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
         optimizer = torch.optim.AdamW(self.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4, factor=0.5)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                        max_lr=lr*10,
+                                                        epochs=epochs,
+                                                        steps_per_epoch=len(dataloader),
+                                                        pct_start=0.3)
 
         print("Starting training...")
         self.train()
@@ -212,12 +250,12 @@ class LSTM1(nn.Module):
                 loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
                 loss.backward()
                 optimizer.step()
+                scheduler.step()
 
-                print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}")
+                print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}, LR: {scheduler.get_last_lr()[0]:.6f}")
                 total_loss += loss.item()
             
             avg_loss = total_loss / len(dataloader)
-            scheduler.step(avg_loss)
 
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
@@ -230,4 +268,4 @@ class LSTM1(nn.Module):
                 'model_state_dict': self.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': avg_loss,
-            }, f'checkpoints/lstm1_epoch{epoch+1}.pth')
+            }, f'checkpoints/{self.name}_epoch{epoch+1}.pth')
