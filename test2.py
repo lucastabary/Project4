@@ -102,11 +102,15 @@ class MIDIDataset(Dataset):
         self.midi_files = midi_files
         self.seq_len = seq_len
 
+        print(f"Processing {len(midi_files)} MIDI files...")
+        self.all_midi_data = [process_midi_file(f) for f in midi_files]
+        print("Processing complete.")
+
     def __len__(self):
         return len(self.midi_files)
 
     def __getitem__(self, idx):
-        midi_data = process_midi_file(self.midi_files[idx])
+        midi_data = self.all_midi_data[idx]
         # Découpage aléatoire si la séquence est trop longue
         if len(midi_data) > self.seq_len:
             start = np.random.randint(0, len(midi_data) - self.seq_len - 1)
@@ -228,7 +232,7 @@ class LSTM(nn.Module):
         print(f"Quick test MIDI file saved as generated/qt_{self.name}_{name}.mid")
 
     def launch_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True,
                                 generator=torch.Generator(device=torch.get_default_device()),
                                 collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
