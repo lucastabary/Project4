@@ -12,8 +12,8 @@ def train():
     midi_files = find_all_midi_files('datasets/MAESTRO/data')
 
     dataset = MIDIDataset(midi_files)
-    
-    model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256)
+
+    model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
     model = model.to(torch.get_default_device())
     
     model.launch_training(dataset, epochs=200, batch_size=128, lr=0.001)
