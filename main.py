@@ -11,12 +11,12 @@ def train():
     print(f"Using device: {torch.get_default_device()}")
     midi_files = find_all_midi_files('datasets/MAESTRO/data')
 
-    dataset = MIDIDataset(midi_files)
+    dataset = MIDIDataset(midi_files, seq_len=2**14)
 
     model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
     model = model.to(torch.get_default_device())
     
-    model.launch_training(dataset, epochs=200, batch_size=128, lr=0.001)
+    model.launch_training(dataset, epochs=1000, batch_size=128, lr=0.001)
     print("Training complete.")
 
 def generate():

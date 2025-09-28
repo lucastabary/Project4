@@ -98,7 +98,7 @@ def process_midi_file(midi_file):
 
 
 class MIDIDataset(Dataset):
-    def __init__(self, midi_files, seq_len=2048):
+    def __init__(self, midi_files, seq_len=2**14):
         self.midi_files = midi_files
         self.seq_len = seq_len
 
@@ -192,7 +192,7 @@ class LSTM(nn.Module):
         print(f"{wrong_tokens} / {seq_len} wrong tokens ({(wrong_tokens/seq_len)*100:.2f}%)")
         return generated
 
-    def generate_stochastic_sequence(self, seq_len=2048, generated=None, temperature=1.0, device=None):
+    def generate_stochastic_sequence(self, seq_len=2**14, generated=None, temperature=1.0, device=None):
         if device is None:
             device = torch.get_default_device()
         if generated is None:
@@ -251,7 +251,6 @@ class LSTM(nn.Module):
                 targets = batch[:, 1:]  # Next token prediction
                 inputs = batch[:, :-1]  # Align inputs with targets
                 
-                print(f"Inputs shape: {inputs.shape}, Input device : {inputs.device}")
 
                 optimizer.zero_grad()
                 outputs = self(inputs)
@@ -261,22 +260,17 @@ class LSTM(nn.Module):
                 torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
 
-                print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}, LR: {scheduler.get_last_lr()[0]:.6f}")
                 total_loss += loss.item()
             
             avg_loss = total_loss / len(dataloader)
             scheduler.step(avg_loss)
 
-            print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
-
-
-            self.eval()
-            self.quick_test(f"epoch{epoch+1}")
-            self.train()
-
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': self.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': avg_loss,
-            }, f'checkpoints/{self.name}_epoch{epoch+1}.pth')
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
+            
+            if (epoch + 1) % 50 == 0 or epoch == epochs - 1:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': self.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': avg_loss,
+                }, f'checkpoints/{self.name}_epoch{epoch+1}.pth')
