@@ -13,24 +13,26 @@ def train():
 
     dataset = MIDIDataset(midi_files, seq_len=2**14)
 
-    model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
+    model = LSTM("lstm2.1", embedding_dim=16, hidden_size=256, dropout=0.2)
+    model.load_state_dict(torch.load('checkpoints/lstm2.0_epoch50.pth', map_location=torch.get_default_device())['model_state_dict'])
     model = model.to(torch.get_default_device())
     
-    model.launch_training(dataset, epochs=50, batch_size=4, lr=0.001)
+    model.launch_training(dataset, epochs=150, batch_size=4, lr=0.001)
     print("Training complete.")
 
 def generate():
 
-    model = LSTM1("lstm1.2", embedding_dim=16, hidden_size=256)
+    model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
 
-    model.load_state_dict(torch.load('checkpoints/lstm1.2_epoch44.pth', map_location=torch.get_default_device())['model_state_dict'])
+    model.load_state_dict(torch.load('checkpoints/lstm2.0_epoch14.pth', map_location=torch.get_default_device())['model_state_dict'])
 
-    generated = model.generate_stochastic_sequence(seq_len=512+1, temperature=.1)
+    model.eval()
+    generated = model.generate_stochastic_sequence(seq_len=512+1, temperature=.5)
 
     generated_tokens = [all_tokens[i] for i in generated]
     print("Generated tokens:", generated_tokens)
     print("Generated sequence:", generated)
-    write_midi_file(generated[1:], "generated/test3.mid")
+    write_midi_file(generated[1:], "generated/test6.mid")
     print()
 
 

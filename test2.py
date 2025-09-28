@@ -4,7 +4,11 @@ import torch.nn as nn
 import pretty_midi
 from data_manager import *
 import numpy as np
+import logging
 
+logging.basicConfig(filename="training.log",
+                    format='%(asctime)s: %(levelname)s: %(message)s',
+                    level=logging.INFO)
 
 special_tokens = ["PAD", "BOS", "EOS"]
 # Pitch : 128 valeurs
@@ -266,6 +270,7 @@ class LSTM(nn.Module):
             scheduler.step(avg_loss)
 
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
+            logging.info(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
 
             if (epoch + 1) % (epochs // 20) == 0 or epoch == epochs - 1:
                 torch.save({
