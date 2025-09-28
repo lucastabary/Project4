@@ -16,7 +16,7 @@ def train():
     model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
     model = model.to(torch.get_default_device())
     
-    model.launch_training(dataset, epochs=1000, batch_size=16, lr=0.001)
+    model.launch_training(dataset, epochs=1000, batch_size=4, lr=0.001)
     print("Training complete.")
 
 def generate():
