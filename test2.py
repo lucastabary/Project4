@@ -97,7 +97,7 @@ def process_midi_file(midi_file):
     return notes
 
 
-class MIDIDataset1(Dataset):
+class MIDIDataset(Dataset):
     def __init__(self, midi_files, seq_len=2048):
         self.midi_files = midi_files
         self.seq_len = seq_len
@@ -116,14 +116,14 @@ class MIDIDataset1(Dataset):
 
 
 
-class LSTM1(nn.Module):
+class LSTM(nn.Module):
     def __init__(self, name, embedding_dim, hidden_size):
-        super(LSTM1, self).__init__()
+        super(LSTM, self).__init__()
         self.name = name
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(len(all_tokens), embedding_dim=embedding_dim)
-        self.lstm1 = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
-        self.lstm2 = nn.LSTM(hidden_size, hidden_size, batch_first=True)
+        self.lstm1 = nn.LSTM(embedding_dim, hidden_size, batch_first=True, dropout=0.2)
+        self.lstm2 = nn.LSTM(hidden_size, hidden_size, batch_first=True, dropout=0.2)
         self.fc = nn.Linear(hidden_size, len(all_tokens))
 
     def forward(self, x):
@@ -228,14 +228,8 @@ class LSTM1(nn.Module):
                                 generator=torch.Generator(device=torch.get_default_device()),
                                 collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
-        optimizer = torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=1e-5)
-        """
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
-                                                        max_lr=lr*10,
-                                                        epochs=epochs,
-                                                        steps_per_epoch=len(dataloader),
-                                                        pct_start=0.3)
-        """
+        optimizer = torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=1e-4)
+
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=4, verbose=True)
 
         print("Starting training...")
@@ -254,9 +248,10 @@ class LSTM1(nn.Module):
                 optimizer.zero_grad()
                 outputs = self(inputs)
                 loss = criterion(outputs.view(-1, len(all_tokens)), targets.contiguous().view(-1))
+
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
-                # scheduler.step()
 
                 print(f"Epoch [{epoch+1}/{epochs}], Step [{batch_idx+1}/{len(dataloader)}], Loss: {loss.item():.4f}, LR: {scheduler.get_last_lr()[0]:.6f}")
                 total_loss += loss.item()
