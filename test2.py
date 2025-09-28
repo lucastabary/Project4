@@ -93,7 +93,7 @@ def process_midi_file(midi_file):
         last_start = start
 
     notes.append(token_to_id["EOS"])
-    notes = torch.tensor(notes, dtype=torch.uint8).to(torch.get_default_device())
+    notes = torch.tensor(notes, dtype=torch.uint8).to('cpu')
     return notes
 
 
