@@ -117,15 +117,15 @@ class MIDIDataset(Dataset):
 
 
 class LSTM(nn.Module):
-    def __init__(self, name, embedding_dim, hidden_size, droupout):
+    def __init__(self, name, embedding_dim, hidden_size, dropout):
         super(LSTM, self).__init__()
         self.name = name
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(len(all_tokens), embedding_dim=embedding_dim)
         self.lstm1 = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
-        self.dropout1 = nn.Dropout(droupout)
+        self.dropout1 = nn.Dropout(dropout)
         self.lstm2 = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.dropout2 = nn.Dropout(droupout)
+        self.dropout2 = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_size, len(all_tokens))
 
     def forward(self, x):
