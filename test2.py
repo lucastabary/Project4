@@ -266,8 +266,8 @@ class LSTM(nn.Module):
             scheduler.step(avg_loss)
 
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
-            
-            if (epoch + 1) % 50 == 0 or epoch == epochs - 1:
+
+            if (epoch + 1) % (epochs // 20) == 0 or epoch == epochs - 1:
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': self.state_dict(),
