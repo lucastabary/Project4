@@ -119,7 +119,7 @@ class MIDIDataset(Dataset):
         print("Processing complete.")
 
     def __len__(self):
-        return len(self.midi_files)
+        return len(self.all_midi_data)
 
     def __getitem__(self, idx):
         midi_data = self.all_midi_data[idx]
