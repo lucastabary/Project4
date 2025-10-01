@@ -1,38 +1,35 @@
 import torch
-from test2 import LSTM, MIDIDataset, all_tokens, write_midi_file, token_to_id, id_to_token
+from test3 import LSTM, MIDIDataset, all_tokens, write_midi_file, token_to_id, id_to_token, process_midi_file
 from data_manager import find_all_midi_files
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_device(device)
 
+midi_files = find_all_midi_files('datasets/MAESTRO/data')
+
 
 def train():
     print(f"Using device: {torch.get_default_device()}")
-    midi_files = find_all_midi_files('datasets/MAESTRO/data')
+    dataset = MIDIDataset.load_processed("datasets/maestro.pt", seq_len=2**10)
 
-    dataset = MIDIDataset(midi_files, seq_len=2**14)
-
-    model = LSTM("lstm2.1", embedding_dim=16, hidden_size=256, dropout=0.2)
-    model.load_state_dict(torch.load('checkpoints/lstm2.0_epoch50.pth', map_location=torch.get_default_device())['model_state_dict'])
+    model = LSTM("lstm3.0", embedding_dim=16, hidden_size=256, dropout=0.2)
     model = model.to(torch.get_default_device())
     
-    model.launch_training(dataset, epochs=150, batch_size=4, lr=0.001)
+    model.launch_training(dataset, epochs=2000, batch_size=128, lr=0.001)
     print("Training complete.")
 
 def generate():
 
-    model = LSTM("lstm2.0", embedding_dim=16, hidden_size=256, dropout=0.2)
+    model = LSTM("lstm2.1", embedding_dim=16, hidden_size=256, dropout=0.2)
 
-    model.load_state_dict(torch.load('checkpoints/lstm2.0_epoch14.pth', map_location=torch.get_default_device())['model_state_dict'])
+    model.load_state_dict(torch.load('checkpoints/lstm2.1_epoch84.pth', map_location=torch.get_default_device())['model_state_dict'])
 
     model.eval()
-    generated = model.generate_stochastic_sequence(seq_len=512+1, temperature=.5)
+    generated = model.generate_stochastic_sequence(seq_len=512+1, temperature=.8)
 
-    generated_tokens = [all_tokens[i] for i in generated]
-    print("Generated tokens:", generated_tokens)
     print("Generated sequence:", generated)
-    write_midi_file(generated[1:], "generated/test6.mid")
+    write_midi_file(generated[1:], "generated/test12.mid")
     print()
 
 
@@ -62,5 +59,30 @@ def debug():
 
     print()
 
+def analyse_embeddings():
+
+    cos = lambda a,b : (a @ b) / ((a**2).sum()**0.5 * (b**2).sum()**0.5)
+    
+    import matplotlib.pyplot as plt
+
+    model = LSTM("lstm2.1", embedding_dim=16, hidden_size=256, dropout=0.2)
+    model.load_state_dict(torch.load('checkpoints/lstm2.1_epoch84.pth', map_location=torch.get_default_device())['model_state_dict'])
+    embeddings = model.embedding.weight.cpu().detach().numpy()
+
+    cosine_similarity = embeddings / (embeddings**2).sum(axis=1, keepdims=True)**0.5
+    cosine_similarity = cosine_similarity @ cosine_similarity.T
+
+    # Pitch similarities
+    plt.figure(figsize=(10, 8))
+    
+    plt.title("Pitch Similarities")
+    plt.xlabel("Token ID")
+    plt.ylabel("Token ID")
+    plt.imshow(cosine_similarity[3:131, 3:131], cmap='hot', interpolation='nearest')
+    plt.colorbar()
+    plt.title("Cosine Similarity of Token Embeddings")
+    plt.show()
+
+    print()
 
 train()

@@ -55,7 +55,7 @@ def write_midi_file(tokens, filename):
 
     current_time = 0.0
     i = 0
-    while i < len(tokens):
+    while i < len(tokens) and id_to_token[tokens[i]] != "EOS":
         pitch_id = tokens[i]
         velocity_id = tokens[i+1]
         duration_id = tokens[i+2]
@@ -102,6 +102,15 @@ def process_midi_file(midi_file):
 
 
 class MIDIDataset(Dataset):
+
+    @classmethod
+    def load_processed(cls, path, seq_len=2**14):
+        all_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.pt')]
+        dataset = cls([], seq_len=seq_len)
+        dataset.all_midi_data = [torch.load(f) for f in all_files]
+        dataset.midi_files = all_files
+        return dataset
+    
     def __init__(self, midi_files, seq_len=2**14):
         self.midi_files = midi_files
         self.seq_len = seq_len
@@ -120,7 +129,15 @@ class MIDIDataset(Dataset):
             start = np.random.randint(0, len(midi_data) - self.seq_len - 1)
             midi_data = midi_data[start:start+self.seq_len+1]
         return midi_data
-        
+    
+    def save_processed(self, path):
+        if os.path.exists(path) == False:
+            os.makedirs(path)
+        for i, (midi_file, midi_data) in enumerate(zip(self.midi_files, self.all_midi_data)):
+            base_name = os.path.basename(midi_file).replace('.mid', '.pt').replace('.midi', '.pt')
+            torch.save(midi_data, os.path.join(path, base_name))
+            if (i+1) % 10 == 0 or i == len(self.midi_files) - 1:
+                print(f"Saved {i+1}/{len(self.midi_files)} files.")
 
 
 
@@ -196,11 +213,10 @@ class LSTM(nn.Module):
         print(f"{wrong_tokens} / {seq_len} wrong tokens ({(wrong_tokens/seq_len)*100:.2f}%)")
         return generated
 
-    def generate_stochastic_sequence(self, seq_len=2**14, generated=None, temperature=1.0, device=None):
+    def generate_stochastic_sequence(self, seq_len=2**14, generated=[token_to_id["BOS"]], temperature=1.0, device=None):
         if device is None:
             device = torch.get_default_device()
-        if generated is None:
-            generated = [token_to_id["BOS"], token_to_id["PITCH_60"], token_to_id["VELOCITY_64"], token_to_id["DURATION_400"], token_to_id["DELTA_0"]]
+        
         input_seq = torch.tensor([generated], device=device)
         with torch.no_grad():
             for _ in range(seq_len - 1):
@@ -273,9 +289,11 @@ class LSTM(nn.Module):
             logging.info(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
 
             if (epoch + 1) % (epochs // 20) == 0 or epoch == epochs - 1:
+                if os.path.exists(f'checkpoints/{self.name}') == False:
+                    os.makedirs(f'checkpoints/{self.name}')
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': self.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': avg_loss,
-                }, f'checkpoints/{self.name}_epoch{epoch+1}.pth')
+                }, f'checkpoints/{self.name}/{self.name}_epoch{epoch+1}.pth')
