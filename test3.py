@@ -263,7 +263,7 @@ class LSTM(nn.Module):
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
         optimizer = torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=1e-4)
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=100)
 
         print("Starting training...")
         self.train()
