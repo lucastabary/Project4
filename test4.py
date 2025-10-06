@@ -265,7 +265,7 @@ class LSTM(nn.Module):
 
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            max_lr=10*lr,
+            max_lr=8*lr,
             steps_per_epoch=len(dataloader),
             epochs=epochs,
             anneal_strategy='cos'

@@ -7,10 +7,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_device(device)
 
 midi_files = find_all_midi_files('datasets/MAESTRO/data')
-dataset = MIDIDataset(midi_files, seq_len=2**10)
-dataset.save_processed('datasets/maestro-reduced.pt')
+dataset = MIDIDataset.load_processed('datasets/maestro-reduced.pt', seq_len=2**10)
+# dataset.save_processed('datasets/maestro-reduced.pt')
 
-model = LSTM("lstm4.0", embedding_dim=16, hidden_size=256, dropout=0.2)
+model = LSTM("lstm4.1", embedding_dim=16, hidden_size=256, dropout=0.2)
 model = model.to(torch.get_default_device())
 # model.load_state_dict(torch.load('checkpoints/lstm3.0/lstm3.0_epoch2000.pth', map_location=torch.get_default_device())['model_state_dict'])
 
@@ -19,7 +19,7 @@ print(f"Using device: {torch.get_default_device()}")
 
 def train():
     
-    model.launch_training(dataset, epochs=8000, batch_size=128, lr=0.001)
+    model.launch_training(dataset, epochs=6000, batch_size=128, lr=0.001)
     print("Training complete.")
 
 def generate():
