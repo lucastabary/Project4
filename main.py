@@ -7,7 +7,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_device(device)
 
 midi_files = find_all_midi_files('datasets/MAESTRO/data')
-dataset = MIDIDataset.load_processed("datasets/maestro.pt", seq_len=2**10)
+dataset = MIDIDataset(midi_files, seq_len=2**10)
 
 model = LSTM("lstm4.0", embedding_dim=16, hidden_size=256, dropout=0.2)
 model = model.to(torch.get_default_device())
