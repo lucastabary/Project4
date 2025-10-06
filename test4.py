@@ -6,20 +6,20 @@ from data_manager import *
 import numpy as np
 import logging
 
-logging.basicConfig(filename="training.log",
+logging.basicConfig(filename="lstm_4.0_training.log",
                     format='%(asctime)s: %(levelname)s: %(message)s',
                     level=logging.INFO)
 
 special_tokens = ["PAD", "BOS", "EOS"]
 # Pitch : 128 valeurs
-pitch_tokens = [f"PITCH_{p}" for p in range(128)]
+pitch_tokens = [f"PITCH_{p}" for p in range(21,109)]  # MIDI pitches from 21 (A0) to 108 (C8)
 
 # Velocity : 16 buckets
 velocity_buckets = [i*8 for i in range(16)]
 velocity_tokens = [f"VELOCITY_{i}" for i in velocity_buckets]
 
 # Durations : buckets hybrides (linéaire pour petits temps, log-spacés après)
-duration_buckets = [0, 2, 5, 10, 20, 30, 40, 50, 75, 100, 150, 200, 300, 400, 600, 800, 1200, 2000]
+duration_buckets = [1, 2, 5, 10, 20, 30, 40, 50, 75, 100, 150, 200, 300, 400, 600, 800, 1200, 2000]
 duration_tokens = [f"DURATION_{d}" for d in duration_buckets]
 
 # Delta_t : même logique que duration
@@ -263,7 +263,13 @@ class LSTM(nn.Module):
         criterion = nn.CrossEntropyLoss(ignore_index=token_to_id["PAD"])
         optimizer = torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=1e-4)
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=100)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=10*lr,
+            steps_per_epoch=len(dataloader),
+            epochs=epochs,
+            anneal_strategy='cos'
+        )
 
         print("Starting training...")
         self.train()
@@ -284,21 +290,21 @@ class LSTM(nn.Module):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
                 optimizer.step()
+                scheduler.step()
 
                 total_loss += loss.item()
             
             avg_loss = total_loss / len(dataloader)
-            scheduler.step(avg_loss)
 
             print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
             logging.info(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, LR: {scheduler._last_lr[0]:.6f}")
 
-            if (epoch + 1) % (epochs // 40) == 0 or epoch == epochs - 1:
-                if os.path.exists(f'checkpoints/{self.name}') == False:
-                    os.makedirs(f'checkpoints/{self.name}')
+            if (epoch + 1) % (epochs // 100) == 0 or epoch == epochs - 1:
+                if os.path.exists(f'trainings/{self.name}') == False:
+                    os.makedirs(f'trainings/{self.name}')
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': self.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'loss': avg_loss,
-                }, f'checkpoints/{self.name}/{self.name}_epoch{epoch+1}.pth')
+                }, f'trainings/{self.name}/{self.name}_epoch{epoch+1}.pth')
