@@ -1,5 +1,5 @@
 import torch
-from test4 import LSTM, MIDIDataset, all_tokens, write_midi_file, token_to_id, id_to_token, process_midi_file
+from test5 import LSTM, MIDIDataset, all_tokens, write_midi_file, token_to_id, id_to_token, process_midi_file
 from data_manager import find_all_midi_files
 
 
@@ -10,25 +10,31 @@ midi_files = find_all_midi_files('datasets/MAESTRO/data')
 dataset = MIDIDataset.load_processed('datasets/maestro-reduced.pt', seq_len=2**10)
 # dataset.save_processed('datasets/maestro-reduced.pt')
 
-model = LSTM("lstm4.1", embedding_dim=16, hidden_size=256, dropout=0.2)
+model = LSTM("lstm5.1", embedding_dim=16, hidden_size=256, dropout=0.2)
 model = model.to(torch.get_default_device())
-# model.load_state_dict(torch.load('checkpoints/lstm3.0/lstm3.0_epoch2000.pth', map_location=torch.get_default_device())['model_state_dict'])
+# model.load_state_dict(torch.load('trainings/lstm4.1/lstm4.1_epoch6000.pth', map_location=torch.get_default_device())['model_state_dict'])
 
 print(f"Using device: {torch.get_default_device()}")
 
 
 def train():
     
+    # Training on small sequences
+    dataset.seq_len = 1024
     model.launch_training(dataset, epochs=6000, batch_size=128, lr=0.001)
-    print("Training complete.")
+    print("Training on small sequences complete.")
+
+    # Training LoRA on long sequences
+    dataset.seq_len = 2**15 # The average length of MIDI files in the dataset is around 22k tokens so 2**15=32768 should consider the whole files
+    model.launch_training(dataset, epochs=2000, batch_size=16, lr=0.001)
 
 def generate():
  
     model.eval()
-    generated = model.generate_stochastic_sequence(seq_len=512+1, temperature=.8)
+    generated = model.generate_stochastic_sequence(seq_len=2**13 +1, temperature=0.8)
 
     print("Generated sequence:", generated)
-    write_midi_file(generated[1:], "generated/test12.mid")
+    write_midi_file(generated[1:], "generated/test18.mid")
     print()
 
 

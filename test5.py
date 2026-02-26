@@ -1,3 +1,11 @@
+"""
+L'idée est d'entrainer le LSTM sur de courtes séquences, puis d'entrainer un LoRA sur des séquences plus longues.
+Le LSTM va apprendre les structures locales, et le LoRA les dépendances à long terme.
+On implémente TBPTT pour l'entrainement du LSTM sur des séquences longues.
+"""
+
+
+
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
@@ -6,7 +14,7 @@ from data_manager import *
 import numpy as np
 import logging
 
-logging.basicConfig(filename="logs/lstm_4_training.log",
+logging.basicConfig(filename="logs/lstm_5_training.log",
                     format='%(asctime)s: %(levelname)s: %(message)s',
                     level=logging.INFO)
 
@@ -140,6 +148,37 @@ class MIDIDataset(Dataset):
                 count[id_to_token[token]] += 1
         return count
 
+
+class LoRA_LSTM_Layer(nn.Module):
+    def __init__(self, lstm_layer, r=4):
+        super(LoRA_LSTM_Layer, self).__init__()
+        self.lstm_layer = lstm_layer
+        self.r = r
+
+        # LoRA parameters for input-hidden weights
+        self.W_ih_A = nn.Linear(lstm_layer.input_size, r, bias=False)
+        self.W_ih_B = nn.Linear(r, lstm_layer.hidden_size * 4, bias=False)
+
+        # LoRA parameters for hidden-hidden weights
+        self.W_hh_A = nn.Linear(lstm_layer.hidden_size, r, bias=False)
+        self.W_hh_B = nn.Linear(r, lstm_layer.hidden_size * 4, bias=False)
+    
+    def forward(self, x, hidden, use_lora=True):
+        # Original LSTM computation
+        h_0, c_0 = hidden
+        output, (h_n, c_n) = self.lstm_layer(x, (h_0, c_0))
+        if not use_lora:
+            return output, (h_n, c_n)
+        
+
+        # LoRA adjustments
+        W_ih_lora = self.W_ih_B(self.W_ih_A(x))
+        W_hh_lora = self.W_hh_B(self.W_hh_A(h_0))
+
+        # Combine original and LoRA weights
+        adjusted_output = output + W_ih_lora + W_hh_lora
+
+        return adjusted_output, (h_n, c_n)
 
 class LSTM(nn.Module):
     def __init__(self, name, embedding_dim, hidden_size, dropout):
@@ -342,7 +381,7 @@ class LSTM(nn.Module):
         write_midi_file(generated[1:], f"generated/qt_{self.name}_{name}.mid")
         print(f"Quick test MIDI file saved as generated/qt_{self.name}_{name}.mid")
 
-    def launch_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
+    def launch_base_training(self, dataset, epochs=10, batch_size=128, lr=0.001):
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True,
                                 generator=torch.Generator(device=torch.get_default_device()),
                                 collate_fn=lambda x: nn.utils.rnn.pad_sequence(x, batch_first=True, padding_value=token_to_id["PAD"]))
@@ -407,3 +446,6 @@ class LSTM(nn.Module):
         print(f"Training of {self.name} finished.")
         logging.info(f"Training of {self.name} finished.")
         logging.info("=========================================")
+    
+    def launch_lora_training(self, dataset, epochs=10, batch_size=64, lr=0.001, r=4):
+        return

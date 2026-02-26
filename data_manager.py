@@ -8,4 +8,3 @@ def find_all_midi_files(root_dir):
             if filename.lower().endswith('.mid') or filename.lower().endswith('.midi'):
                 midi_files.append(os.path.abspath(os.path.join(dirpath, filename)))
     return midi_files
-
